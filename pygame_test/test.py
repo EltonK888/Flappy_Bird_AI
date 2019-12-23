@@ -6,6 +6,7 @@ import random
 
 WIN_WIDTH = 500
 WIN_HEIGHT = 800
+NEW_PIPE_TIME = 3000 # 3000ms (3s) between pipes
 
 BIRD_IMGS = [pygame.transform.scale2x(pygame.image.load(os.path.join("../static", "imgs", "bird1.png"))), pygame.transform.scale2x(pygame.image.load(os.path.join("../static", "imgs", "bird2.png"))), pygame.transform.scale2x(pygame.image.load(os.path.join("../static", "imgs", "bird3.png")))]
 PIPE_IMG = pygame.transform.scale2x(pygame.image.load(os.path.join("../static", "imgs", "pipe.png")))
@@ -110,38 +111,55 @@ class Pipe():
     
     def set_height(self):
         '''Randomly generates the height of the pipe'''
-        self.height = random.randrange(40, 450)
+        self.height = random.randrange(80, 450)
         self.top = self.height
     
     def draw(self, window):
         '''Draws the pipe image onto the background window'''
-        width_height = self.pipe_top.get_size()
-        self.pipe_top = pygame.transform.scale(self.pipe_top, (width_height[0], self.height))
-        window.blit(self.pipe_top, (0,50))
+        pipe_width = self.pipe_top.get_size()[0]
+        pipe_height = self.pipe_top.get_size()[1]
+        bottom_pipe_height = WIN_HEIGHT-self.height-self.GAP
+        bottom_pipe_coords = WIN_HEIGHT-bottom_pipe_height
+        self.x -= self.VEL
+        window.blit(self.pipe_top, (self.x, WIN_HEIGHT-self.GAP-bottom_pipe_height-pipe_height))
+        window.blit(self.pipe_bottom, (self.x, bottom_pipe_coords))
 
 
-def draw_window(window, bird, pipe):
-    '''Draws the background image on the window and the bird flapping'''
+def draw_window(window, bird, pipe, new_pipe, new_pipe_flag):
+    '''Draws the background image on the window and the bird flapping and the pipes'''
     window.blit(BACKGROUND_IMG, (0, 0))
     bird.draw(window)
-    #pipe.set_height()
     pipe.draw(window)
+    if new_pipe_flag: # if there is a second pipe created, then draw that one as well
+        new_pipe.draw(window)
     pygame.display.update()
 
 def main():
-    bird = Bird(WIN_WIDTH/2-25, 200)
-    pipe = Pipe(20)
+    bird = Bird(WIN_WIDTH/2-25, WIN_HEIGHT/2-100) # create a new bird and set its position in the middle
+    pipe = Pipe(WIN_WIDTH) # create the first pipe and set its height randomly
     pipe.set_height()
-    win = pygame.display.set_mode((WIN_WIDTH, WIN_HEIGHT))
+    new_pipe = None # initialize new pipe but don't create a new one yet
+    win = pygame.display.set_mode((WIN_WIDTH, WIN_HEIGHT)) # create the game window
     run = True
+    draw_pipe_event = pygame.USEREVENT # an event that triggers when it is time to draw a new pipe
+    pygame.time.set_timer(draw_pipe_event, NEW_PIPE_TIME)
+    new_pipe_flag = False # initially set this to false so game knows when to draw a new pipe
     clock = pygame.time.Clock()
     while run:
         clock.tick(30) # sets the tick rate so that only 30 frames pass per game tick
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 run = False
+            if event.type == pygame.MOUSEBUTTONDOWN or (event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE):
+                bird.jump()
+            if event.type == draw_pipe_event:
+                if new_pipe is not None:
+                    pipe = new_pipe
+                new_pipe = Pipe(WIN_WIDTH)
+                new_pipe.set_height()
+                new_pipe_flag = True
         bird.move()
-        draw_window(win, bird, pipe)
+        draw_window(win, bird, pipe, new_pipe, new_pipe_flag)
     pygame.quit()
 
 if __name__ == "__main__":
