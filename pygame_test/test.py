@@ -7,7 +7,6 @@ import pygame
 WIN_WIDTH = 500
 WIN_HEIGHT = 800
 NEW_PIPE_TIME = 3000 # 3000ms (3s) between pipes
-VEL = 5 # the speed at which the background (pipes and base) moves in the x direction
 
 BIRD_IMGS = [pygame.transform.scale2x(pygame.image.load(os.path.join("../static", "imgs", "bird1.png"))), pygame.transform.scale2x(pygame.image.load(os.path.join("../static", "imgs", "bird2.png"))), pygame.transform.scale2x(pygame.image.load(os.path.join("../static", "imgs", "bird3.png")))]
 PIPE_IMG = pygame.transform.scale2x(pygame.image.load(os.path.join("../static", "imgs", "pipe.png")))
@@ -93,12 +92,14 @@ class Bird():
         window.blit(rotated_img, rect.topleft)
 
     def get_mask(self):
+        '''Returns a Mask for the bird'''
         return pygame.mask.from_surface(self.img)
 
 
 class Pipe():
     '''Represents a pipe object'''
     GAP = 200 # the space between the two pipes
+    VEL = 5 # the speed at which the background (pipes and base) moves in the x direction
 
     def __init__(self, x):
         self.x = x # position of the pipe in the x axis
@@ -114,7 +115,10 @@ class Pipe():
     def set_height(self):
         '''Randomly generates the height of the pipe'''
         self.height = random.randrange(80, 450)
-        self.top = self.height
+        bottom_pipe_height = WIN_HEIGHT-self.height-self.GAP
+        bottom_pipe_coords = WIN_HEIGHT-bottom_pipe_height
+        self.top = WIN_HEIGHT-self.GAP-bottom_pipe_height-self.pipe_top.get_size()[1]
+        self.bottom = WIN_HEIGHT-bottom_pipe_height
 
     def draw(self, window):
         '''Draws the pipe image onto the background window'''
@@ -126,11 +130,27 @@ class Pipe():
 
     def move(self):
         '''Moves the pipes a fixed distance based on VEL'''
-        self.x -= VEL
+        self.x -= self.VEL
 
+    def collision(self, bird):
+        '''Determins if the pipe has collided with the bird'''
+        bird_mask = bird.get_mask()
+        top_mask = pygame.mask.from_surface(self.pipe_top)
+        bottom_mask = pygame.mask.from_surface(self.pipe_bottom)
+        top_mask_offset = (int(self.x - bird.x), self.top - round(bird.y)) 
+        bottom_mask_offset = (int(self.x - bird.x), self.bottom - round(bird.y)) 
+
+        top_overlap = bird_mask.overlap(top_mask, top_mask_offset)
+        bottom_overlap = bird_mask.overlap(bottom_mask, bottom_mask_offset)
+
+        if top_overlap or bottom_overlap:
+            return True
+        else:
+            return False
 
 class Base():
     '''Represents the base (ground) of the game'''
+    VEL = 5 # the speed at which the background (pipes and base) moves in the x direction
 
     def __init__(self, x):
         self.x = x # the position in the x direction where the base starts
@@ -143,7 +163,7 @@ class Base():
 
     def move(self):
         '''Moves the base left by VEL pixels'''
-        self.x -= VEL
+        self.x -= self.VEL
 
     def redraw(self, x, window):
         '''Redraws the base by resetting its x coordinate'''
@@ -205,6 +225,18 @@ def main():
         pipe.move()
         if new_pipe is not None:
             new_pipe.move()
+            if pipe.collision(bird) or new_pipe.collision(bird):
+                pipe.VEL = 0
+                new_pipe.VEL = 0
+                base.VEL = 0
+                new_base.VEL = 0
+                print("bird has collided!")
+        else:
+            if pipe.collision(bird):
+                pipe.VEL = 0
+                base.VEL = 0
+                new_base.VEL = 0
+                print("bird has collided")
         draw_window(win, base, new_base, bird, pipe, new_pipe, new_pipe_flag)
     pygame.quit()
 
