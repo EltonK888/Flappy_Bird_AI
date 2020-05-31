@@ -4,6 +4,7 @@ import time
 import neat
 import pygame
 
+pygame.font.init() # creating the pygame font
 WIN_WIDTH = 500
 WIN_HEIGHT = 800
 NEW_PIPE_TIME = 3000 # 3000ms (3s) between pipes
@@ -12,6 +13,7 @@ BIRD_IMGS = [pygame.transform.scale2x(pygame.image.load(os.path.join("../static"
 PIPE_IMG = pygame.transform.scale2x(pygame.image.load(os.path.join("../static", "imgs", "pipe.png")))
 BASE_IMG = pygame.transform.scale2x(pygame.image.load(os.path.join("../static", "imgs", "base.png")))
 BACKGROUND_IMG = pygame.transform.scale2x(pygame.image.load(os.path.join("../static", "imgs", "bg.png")))
+FONT = pygame.font.SysFont("comicsans", 100) # sets the style of the font in pygame
 
 class Bird():
     '''Represents a Bird object'''
@@ -48,8 +50,10 @@ class Bird():
             displacement -= 2
         # change the position in the y axis by the calculated displacement
         self.y += displacement
+        '''
         if self.y > WIN_HEIGHT-140:
             self.y -= displacement
+        '''
 
         #### to calculate the tilt of the bird ###
         # if we're moving upwards or have recently jumped, change the tilt of the bird to look up
@@ -98,7 +102,7 @@ class Bird():
 
 class Pipe():
     '''Represents a pipe object'''
-    GAP = 200 # the space between the two pipes
+    GAP = 190 # the space between the two pipes
     VEL = 5 # the speed at which the background (pipes and base) moves in the x direction
 
     def __init__(self, x):
@@ -151,24 +155,33 @@ class Pipe():
 class Base():
     '''Represents the base (ground) of the game'''
     VEL = 5 # the speed at which the background (pipes and base) moves in the x direction
+    BASE_WIDTH = BASE_IMG.get_width()
 
-    def __init__(self, x):
-        self.x = x # the position in the x direction where the base starts
+    def __init__(self):
+        self.x = 0 # the position in the x direction where the base starts
+        self.x2 = self.BASE_WIDTH # position where the second base starts which makes it look like one continuous movement
         self.y = WIN_HEIGHT-100 # the position in the y direction where the base will be
         self.base = BASE_IMG # the image of the base
 
     def draw(self, window):
         '''Draws the base on the window in its x and y coordinates'''
         window.blit(self.base, (self.x, self.y))
+        window.blit(self.base, (self.x2, self.y))
 
     def move(self):
         '''Moves the base left by VEL pixels'''
         self.x -= self.VEL
+        self.x2 -= self.VEL
+        if (self.x + self.BASE_WIDTH < 0):
+            # if the first base has moved off the screen, redraw it at the end of the second base
+            self.x = self.x2 + self.BASE_WIDTH
+        if (self.x2 + self.BASE_WIDTH < 0):
+            # if the second base has moved off the screen
+            self.x2 = self.x + self.BASE_WIDTH
 
-    def redraw(self, x, window):
-        '''Redraws the base by resetting its x coordinate'''
-        self.x = x
-        window.blit(self.base, (self.x, self.y))
+    def collision(self, bird):
+        '''Determins if the base has collided with the bird'''
+        return bird.y >= self.y-40
 
     def get_x(self):
         '''Return the x coordinate of the base'''
@@ -176,36 +189,28 @@ class Base():
 
 
 
-def draw_window(window, base, new_base, bird, pipe, new_pipe, new_pipe_flag):
+def draw_window(window, base, bird, pipes, score):
     '''Draws the assets onto the game window'''
     window.blit(BACKGROUND_IMG, (0, 0))
-    pipe.draw(window)
-    if new_pipe_flag: # if there is a second pipe created, then draw that one as well
-        new_pipe.draw(window)
-    # redraw the bases if they have moved all the way across the screen
-    if base.get_x() < BASE_IMG.get_width() * -1:
-        base.redraw(BASE_IMG.get_width()-5, window)
-    if new_base.get_x() < BASE_IMG.get_width() * -1:
-        new_base.redraw(BASE_IMG.get_width()-5, window)
+    for pipe in pipes:
+        pipe.draw(window)
+    text = FONT.render(str(score), 1, (255,255,255))
+    window.blit(text, (WIN_WIDTH-10-text.get_width(), 10))
     base.draw(window)
-    new_base.draw(window)
     bird.draw(window)
     pygame.display.update()
 
 
 def main():
     bird = Bird(WIN_WIDTH/2-25, WIN_HEIGHT/2-100) # create a new bird and set its position in the middle
-    pipe = Pipe(WIN_WIDTH) # create the first pipe and set its height randomly
+    pipe = Pipe(WIN_WIDTH)
     pipe.set_height()
-    new_pipe = None # initialize new pipe but don't create a new one yet
+    pipes = [pipe] # create the first pipe and set its height randomly
     win = pygame.display.set_mode((WIN_WIDTH, WIN_HEIGHT)) # create the game window
-    base = Base(0)
-    new_base = Base(BASE_IMG.get_width())
+    base = Base()
     run = True
-    draw_pipe_event = pygame.USEREVENT # an event that triggers when it is time to draw a new pipe
-    pygame.time.set_timer(draw_pipe_event, NEW_PIPE_TIME)
-    new_pipe_flag = False # initially set this to false so game knows when to draw a new pipe
     clock = pygame.time.Clock()
+    score = 0
     while run:
         clock.tick(30) # sets the tick rate so that only 30 frames pass per game tick
         for event in pygame.event.get():
@@ -213,31 +218,33 @@ def main():
                 run = False
             if event.type == pygame.MOUSEBUTTONDOWN or (event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE):
                 bird.jump()
-            if event.type == draw_pipe_event:
-                if new_pipe is not None:
-                    pipe = new_pipe
-                new_pipe = Pipe(WIN_WIDTH)
-                new_pipe.set_height()
-                new_pipe_flag = True
         bird.move()
         base.move()
-        new_base.move()
-        pipe.move()
-        if new_pipe is not None:
-            new_pipe.move()
-            if pipe.collision(bird) or new_pipe.collision(bird):
-                pipe.VEL = 0
-                new_pipe.VEL = 0
-                base.VEL = 0
-                new_base.VEL = 0
-                print("bird has collided!")
-        else:
+        add_pipe = False
+        pipes_to_remove = []
+        for pipe in pipes:
             if pipe.collision(bird):
-                pipe.VEL = 0
-                base.VEL = 0
-                new_base.VEL = 0
-                print("bird has collided")
-        draw_window(win, base, new_base, bird, pipe, new_pipe, new_pipe_flag)
+                run = False
+                print("bird has collided! Your score was {}".format(score))
+            if pipe.x + PIPE_IMG.get_width() <= 0:
+                # if the pipe has moved off the screen need to remove the pipe
+                pipes_to_remove.append(pipe)
+            if pipe.x + PIPE_IMG.get_width() < bird.x and not pipe.passed:
+                # if pipe has passed the bird, need to draw another pipe
+                pipe.passed = True
+                add_pipe = True
+                score += 1
+            pipe.move()
+        if add_pipe:
+            new_pipe = Pipe(WIN_WIDTH)
+            new_pipe.set_height()
+            pipes.append(new_pipe)
+        for pipe in pipes_to_remove:
+            pipes.remove(pipe)
+        if base.collision(bird):
+            run = False
+            print("bird has collided! Your score was {}".format(score))
+        draw_window(win, base, bird, pipes, score)
     pygame.quit()
 
 
