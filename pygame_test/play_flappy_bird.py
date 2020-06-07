@@ -184,7 +184,7 @@ class Base():
 
 
 
-def draw_window(window, base, birds, pipes, score):
+def draw_window(window, base, bird, pipes, score):
     '''Draws the assets onto the game window'''
     window.blit(BACKGROUND_IMG, (0, 0))
     for pipe in pipes:
@@ -192,26 +192,14 @@ def draw_window(window, base, birds, pipes, score):
     text = FONT.render(str(score), 1, (255,255,255))
     window.blit(text, (WIN_WIDTH-10-text.get_width(), 10))
     base.draw(window)
-    for bird in birds:
-        bird.draw(window)
+    bird.draw(window)
     pygame.display.update()
 
 
-def main(genomes, config):
-
-    # lists for the neural networks
-    birds = []
-    networks = []
-    ge = []
-
-    for _, g in genomes:
-        # create the lists
-        networks.append(neat.nn.FeedForwardNetwork.create(g, config))
-        birds.append(Bird(WIN_WIDTH/2-25, WIN_HEIGHT/2-100))
-        g.fitness = 0
-        ge.append(g)
+def main():
 
     # set up game assets
+    bird = Bird(WIN_WIDTH/2-25, WIN_HEIGHT/2-100) # create a new bird and set its position in the middle
     pipe = Pipe(WIN_WIDTH)
     pipes = [pipe] # create the first pipe and set its height randomly
     win = pygame.display.set_mode((WIN_WIDTH, WIN_HEIGHT)) # create the game window
@@ -220,6 +208,7 @@ def main(genomes, config):
     clock = pygame.time.Clock()
 
     score = 0
+
     while run:
         clock.tick(30) # sets the tick rate so that only 30 frames pass per game tick
         for event in pygame.event.get():
@@ -227,92 +216,44 @@ def main(genomes, config):
                 run = False
                 pygame.quit()
                 quit()
-        base.move()
-        # figure out which pipe the neural network should look at when evaluating to jump
-        pipe_index = 0 if not pipes[0].passed else 1
-        for x, bird in enumerate(birds):
-            # determine the output using the following inputs
-            # the bird's y position, distance between the bird and the top pipe in the y axis, distance between the bird and the bottom pipe
-            # uses the tanh activation function to determine the output
-            output = networks[x].activate((bird.y, abs(bird.y-pipes[pipe_index].height), abs(bird.y-pipes[pipe_index].bottom)))
-            bird.move()
-            ge[x].fitness += 0.1
-            # determine if the bird should jump
-            if output[0] > 0.5:
+            if event.type == pygame.MOUSEBUTTONDOWN or (event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE):
                 bird.jump()
+        base.move()
+        bird.move()
         add_pipe = False
         pipes_to_remove = []
         for pipe in pipes:
-            for i, bird in enumerate(birds):
-                # for every bird, check if it has collided with a pipe
-                if pipe.collision(bird):
-                    # if the bird collides, then remove it and its associated
-                    # data from all the lists
-                    ge[i].fitness -= 1
-                    birds.pop(i)
-                    networks.pop(i)
-                    ge.pop(i)
-                if pipe.x + PIPE_IMG.get_width() < bird.x and not pipe.passed:
-                    if bird.y < 0:
-                        # case where the bird flies up off the game screen and passes a pipe,
-                        # it should collide
-                        bird.pop(i)
-                        ge.pop(i)
-                        networks.pop(i)
-                    else:
-                        # if pipe has passed the bird, need to draw another pipe
-                        # add one to the score
-                        pipe.passed = True
-                        add_pipe = True
-                        score += 1
+            # for every bird, check if it has collided with a pipe
+            if pipe.collision(bird):
+                run = False
+                print("bird has collided! Your score was {}".format(score))
+            if pipe.x + PIPE_IMG.get_width() < bird.x and not pipe.passed:
+                if bird.y < 0:
+                    # case where the bird flies up off the game screen and passes a pipe, it should collide
+                    run = False
+                    print("bird has collided! Your score was {}".format(score))
+                else:
+                    # if pipe has passed the bird, need to draw another pipe
+                    pipe.passed = True
+                    add_pipe = True
+                    score += 1
             if pipe.x + PIPE_IMG.get_width() <= 0:
                 # if the pipe has moved off the screen need to remove the pipe
                 pipes_to_remove.append(pipe)
             pipe.move()
         if add_pipe:
-            # create a new pipe if the birds have passed one
-            for g in ge:
-                # increase the fitness
-                g.fitness += 5
+            # if we need to add a pipe, create one and add it to the pipes list
             new_pipe = Pipe(WIN_WIDTH)
             pipes.append(new_pipe)
         for pipe in pipes_to_remove:
-            # remove pipes that have gone off the screen
+            # remove the pipes that have passed and moved off screen
             pipes.remove(pipe)
-        for i, bird in enumerate(birds):
-            # check if each bird has hit the ground. Remove if they have
-            if base.collision(bird):
-                birds.pop(i)
-                ge.pop(i)
-                networks.pop(i)
-        draw_window(win, base, birds, pipes, score)
-        if len(birds) == 0:
-            # if we have no more birds, then move onto the next generation
+        # check if each bird has hit the ground
+        if base.collision(bird):
             run = False
-
-
-def run(config_file):
-    '''Sets up the population and the number of generations to run
-    the game for.
-    '''
-    config = neat.config.Config(neat.DefaultGenome, neat.DefaultReproduction, neat.DefaultSpeciesSet, neat.DefaultStagnation, config_file)
-
-    # create population
-    pop = neat.population.Population(config)
-    
-    # statistics report
-    pop.add_reporter(neat.StdOutReporter(True))
-    stats = neat.StatisticsReporter()
-    pop.add_reporter(stats)
-    pop.add_reporter(neat.Checkpointer(5))
-
-    # run for 30 generations
-    winner = pop.run(main, 30)
-
+            print("bird has collided! Your score was {}".format(score))
+        draw_window(win, base, bird, pipes, score)
 
 
 if __name__ == "__main__":
-    path = os.path.realpath(__file__)
-    dirname = os.path.dirname(path)
-    config_file = os.path.join(dirname, 'config-neat.txt')
-    run(config_file)
+    main()
