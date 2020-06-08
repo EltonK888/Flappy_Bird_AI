@@ -6,9 +6,9 @@ This is a project to recreate the popular mobile game Flappy Birds with an AI tw
 - Pygame module
 
 ## Screenshots
-Normal Gameplay   
+#### Normal Gameplay   
 ![Game Screenshot](https://github.com/EltonK888/Flappy_Bird_AI/blob/master/screenshots/game%20screen.PNG)
 
-AI Training   
+#### AI Training   
 ![AI Bird Training](https://github.com/EltonK888/Flappy_Bird_AI/blob/master/screenshots/AI%20bird%20training.PNG)
 
