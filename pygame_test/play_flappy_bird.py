@@ -1,7 +1,6 @@
 import os
 import random
 import time
-import neat
 import pygame
 
 pygame.font.init() # creating the pygame font
