@@ -5,6 +5,23 @@ This is a project to recreate the popular mobile game Flappy Birds with an AI tw
 - Python
 - Pygame module
 
+## Instructions
+
+Clone the repository by using the following command in the directory you want  
+`$  git clone https://github.com/EltonK888/Flappy_Bird_AI.git`
+
+Install the required dependencies  
+`$  pip3 install requirements.txt`
+
+Play the game or run the AI training by running the commands in the `pygame_test/` directory  
+
+
+AI Training  
+`$  python3 AI_flappy_bird`
+
+Play normally  
+`$  python3 play_flappy_bird.py`
+
 ## Screenshots
 #### Normal Gameplay   
 ![Game Screenshot](https://github.com/EltonK888/Flappy_Bird_AI/blob/master/screenshots/game%20screen.PNG)
