@@ -7,4 +7,5 @@ This is a project to recreate the popular mobile game Flappy Birds with an AI tw
 
 ## Screenshots
 ![Game Screenshot](https://github.com/EltonK888/Flappy_Bird_AI/blob/master/screenshots/game%20screen.PNG)
+![AI Bird Training](https://github.com/EltonK888/Flappy_Bird_AI/blob/master/screenshots/AI%20bird%20training.PNG)
 
